@@ -21,6 +21,7 @@ import feign.jackson.JacksonDecoder;
 import feign.jackson.JacksonEncoder;
 import feign.okhttp.OkHttpClient;
 import feign.slf4j.Slf4jLogger;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.logging.HttpLoggingInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 
 @Configuration
+@Slf4j
 public class BricklinkRestConfiguration {
 
     @Bean
@@ -67,10 +69,24 @@ public class BricklinkRestConfiguration {
     }
 
     private class BricklinkErrorDecoder implements ErrorDecoder {
+
+        private static final String BRICKLINK_ERROR_LOG = """
+            Error executing Bricklink API : %s 
+                URI : %s
+                HTTP Status Response : %d 
+                
+                Feign Method Key : %s
+                Request 
+                    httpMethod [%s] 
+                    url [%s] 
+                    headers [%s]
+        """;
+
         private final ErrorDecoder _default = new Default();
 
         @Override
         public Exception decode(String methodKey, Response response) {
+            log.error(String.format(BRICKLINK_ERROR_LOG, methodKey, response.request().url(), response.status(), methodKey, response.request().httpMethod(), response.request().url(), response.request().headers()));
             if (response.status() >= 400 && response.status() <= 499) {
                 throw new BricklinkClientException(response.status(), methodKey, "");
             }

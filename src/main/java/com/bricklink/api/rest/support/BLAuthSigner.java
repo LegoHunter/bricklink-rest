@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+// @See https://medium.com/@prasad.veluru/guide-to-authenticate-requests-using-oauth-1-0-231e4894311f
 public class BLAuthSigner {
 	private static final String	CHARSET			= "UTF-8";
 	private static final String	HMAC_SHA1		= "HmacSHA1";
