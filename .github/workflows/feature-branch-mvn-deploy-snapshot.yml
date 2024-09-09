@@ -1,11 +1,11 @@
-name: 'feature branch :: mvn verify'
-run-name: 'feature branch :: mvn verify'
+name: 'feature branch :: mvn deploy snapshot'
+run-name: 'feature branch :: mvn deploy snapshot'
 on:
   push:
     branches:
       - 'feature/**'
 jobs:
-  Feature-Branch-Maven-Verify:
+  Feature-Branch-Maven-Deploy-Snapshot:
     runs-on: ubuntu-latest
     permissions:
       contents: read
