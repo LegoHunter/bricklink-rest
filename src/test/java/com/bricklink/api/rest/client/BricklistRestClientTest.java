@@ -13,7 +13,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 @EnableConfigurationProperties(value = BricklinkRestProperties.class)
 @SpringJUnitConfig(classes = {BricklinkRestConfiguration.class})
@@ -29,7 +29,7 @@ public abstract class BricklistRestClientTest {
     protected byte[] getTestResponse(String resourcePath) {
         try {
             log.info("Loading classpath resource [{}]", resourcePath);
-            return Files.readAllBytes(Paths.get(new ClassPathResource(resourcePath).getURI()));
+            return Files.readAllBytes(Path.of(new ClassPathResource(resourcePath).getURI()));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

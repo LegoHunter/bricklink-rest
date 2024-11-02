@@ -85,7 +85,7 @@ public class BricklinkRestConfiguration {
 
         @Override
         public Exception decode(String methodKey, Response response) {
-            log.error(String.format(BRICKLINK_ERROR_LOG, methodKey, response.request().url(), response.status(), methodKey, response.request().httpMethod(), response.request().url(), response.request().headers()));
+            log.error(BRICKLINK_ERROR_LOG.formatted(methodKey, response.request().url(), response.status(), methodKey, response.request().httpMethod(), response.request().url(), response.request().headers()));
             if (response.status() >= 400 && response.status() <= 499) {
                 throw new BricklinkClientException(response.status(), methodKey, "");
             }
