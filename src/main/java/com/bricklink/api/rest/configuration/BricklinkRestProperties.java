@@ -22,8 +22,6 @@ import java.util.Optional;
 @Configuration
 @ConfigurationProperties(prefix = "bricklink.rest")
 public class BricklinkRestProperties {
-    private Path clientConfigDir;
-    private Path clientConfigFile;
     private URI uri;
     private Consumer consumer = new Consumer();
     private Token token = new Token();
