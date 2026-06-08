@@ -1,37 +1,32 @@
 package com.bricklink.api.rest.configuration;
 
+import com.bricklink.api.rest.client.BricklinkHttpClient;
 import com.bricklink.api.rest.client.BricklinkRestClient;
+import com.bricklink.api.rest.client.DefaultBricklinkRestClient;
 import com.bricklink.api.rest.exception.BricklinkClientException;
 import com.bricklink.api.rest.exception.BricklinkServerException;
-import com.bricklink.api.rest.model.v1.BricklinkMeta;
-import com.bricklink.api.rest.model.v1.BricklinkResource;
-import com.bricklink.api.rest.support.BricklinkTarget;
+import com.bricklink.api.rest.support.BricklinkOAuthInterceptor;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import feign.Feign;
-import feign.FeignException;
-import feign.Response;
-import feign.codec.DecodeException;
-import feign.codec.Decoder;
-import feign.codec.ErrorDecoder;
-import feign.jackson.JacksonDecoder;
-import feign.jackson.JacksonEncoder;
-import feign.okhttp.OkHttpClient;
-import feign.slf4j.Slf4jLogger;
-import lombok.extern.slf4j.Slf4j;
-import okhttp3.logging.HttpLoggingInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.util.StreamUtils;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.support.RestClientAdapter;
+import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 
 @Configuration
-@Slf4j
 public class BricklinkRestConfiguration {
 
     @Bean
@@ -46,82 +41,49 @@ public class BricklinkRestConfiguration {
     }
 
     @Bean
-    public BricklinkRestClient bricklinkClient(ObjectMapper mapper, BricklinkRestProperties bricklinkRestProperties) {
-        HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
-        okhttp3.OkHttpClient okHttpClientDelegate = new okhttp3.OkHttpClient.Builder().addInterceptor(logging).build();
-        return Feign
-                .builder()
-                .client(new OkHttpClient(okHttpClientDelegate))
-                .encoder(new JacksonEncoder(mapper))
-                .decoder(new BricklinkDecoder(mapper))
-                .errorDecoder(new BricklinkErrorDecoder())
-                .logger(new Slf4jLogger(BricklinkRestClient.class))
-                .logLevel(feign.Logger.Level.FULL)
-                .target(new BricklinkTarget<>(
-                        bricklinkRestProperties.getConsumer().getKey(),
-                        bricklinkRestProperties.getConsumer().getSecret(),
-                        bricklinkRestProperties.getToken().getValue(),
-                        bricklinkRestProperties.getToken()
-                                .getSecret(),
-                        bricklinkRestProperties.getUri()));
+    public ClientHttpRequestInterceptor bricklinkOAuthInterceptor(BricklinkRestProperties bricklinkRestProperties) {
+        return new BricklinkOAuthInterceptor(bricklinkRestProperties);
     }
 
-    private class BricklinkErrorDecoder implements ErrorDecoder {
-
-        private static final String BRICKLINK_ERROR_LOG = """
-                    Error executing Bricklink API : %s 
-                        URI : %s
-                        HTTP Status Response : %d 
-                        
-                        Feign Method Key : %s
-                        Request 
-                            httpMethod [%s] 
-                            url [%s] 
-                            headers [%s]
-                """;
-
-        private final ErrorDecoder _default = new Default();
-
-        @Override
-        public Exception decode(String methodKey, Response response) {
-            log.error(BRICKLINK_ERROR_LOG.formatted(methodKey, response.request().url(), response.status(), methodKey, response.request().httpMethod(), response.request().url(), response.request().headers()));
-            if (response.status() >= 400 && response.status() <= 499) {
-                throw new BricklinkClientException(response.status(), methodKey, "");
-            }
-            if (response.status() >= 500 && response.status() <= 599) {
-                throw new BricklinkServerException(response.status(), methodKey);
-            }
-            return _default.decode(methodKey, response);
-        }
+    @Bean
+    public RestClient bricklinkRestClientDelegate(
+            ObjectMapper mapper,
+            BricklinkRestProperties bricklinkRestProperties,
+            ClientHttpRequestInterceptor bricklinkOAuthInterceptor) {
+        return RestClient.builder()
+                         .baseUrl(bricklinkRestProperties.getUri().toString())
+                         .messageConverters(converters -> {
+                             converters.removeIf(MappingJackson2HttpMessageConverter.class::isInstance);
+                             converters.add(new MappingJackson2HttpMessageConverter(mapper));
+                         })
+                         .requestInterceptor(bricklinkOAuthInterceptor)
+                         .defaultStatusHandler(HttpStatusCode::isError, (request, response) -> {
+                             int statusCode = response.getStatusCode().value();
+                             String body = responseBody(response);
+                             if (statusCode >= 400 && statusCode <= 499) {
+                                 throw new BricklinkClientException(statusCode, request.getMethod() + " " + request.getURI(), body);
+                             }
+                             if (statusCode >= 500 && statusCode <= 599) {
+                                 throw new BricklinkServerException(statusCode, "Bricklink server error response: [%s]".formatted(body));
+                             }
+                         })
+                         .build();
     }
 
-    private class BricklinkDecoder implements Decoder {
-        private final ObjectMapper mapper;
-        private Decoder delegate;
+    @Bean
+    BricklinkHttpClient bricklinkHttpClient(RestClient bricklinkRestClientDelegate) {
+        RestClientAdapter adapter = RestClientAdapter.create(bricklinkRestClientDelegate);
+        return HttpServiceProxyFactory.builderFor(adapter)
+                                      .build()
+                                      .createClient(BricklinkHttpClient.class);
+    }
 
-        private BricklinkDecoder(ObjectMapper mapper) {
-            this.mapper = mapper;
-            delegate = new JacksonDecoder(mapper);
-        }
+    @Bean
+    public BricklinkRestClient bricklinkClient(BricklinkHttpClient bricklinkHttpClient) {
+        return new DefaultBricklinkRestClient(bricklinkHttpClient);
+    }
 
-        @Override
-        public Object decode(Response response, Type type) throws IOException, DecodeException, FeignException {
-            Object object = delegate.decode(response, type);
-            if (object instanceof BricklinkResource bricklinkResource) {
-                BricklinkMeta meta = bricklinkResource.getMeta();
-                if (meta.getCode() >= 400 && meta.getCode() <= 499) {
-                    throw new BricklinkClientException(meta.getCode(), meta.getMessage(), meta.getDescription());
-                }
-                if (meta.getCode() >= 500 && meta.getCode() <= 599) {
-                    throw new BricklinkServerException(meta.getCode(),
-                            String.format("Bricklink server error description: [%s] message: [%s] code: [%s]",
-                                    meta.getDescription(),
-                                    meta.getMessage(),
-                                    meta.getCode()));
-                }
-            }
-            return object;
-        }
+    private String responseBody(ClientHttpResponse response) throws IOException {
+        return StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
     }
 }

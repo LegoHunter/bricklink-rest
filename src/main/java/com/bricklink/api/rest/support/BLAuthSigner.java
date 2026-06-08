@@ -1,11 +1,10 @@
 package com.bricklink.api.rest.support;
 
-import org.apache.commons.codec.binary.Base64;
-
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.Base64;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -35,11 +34,15 @@ public class BLAuthSigner {
 	private Timer				timer;
 
 	public BLAuthSigner(String consumerKey, String consumerSecret) {
+		this(consumerKey, consumerSecret, new Timer());
+	}
+
+	BLAuthSigner(String consumerKey, String consumerSecret, Timer timer) {
 		this.consumerKey = consumerKey;
 		this.consumerSecret = consumerSecret;
 		this.oauthParameters = new HashMap<>();
 		this.queryParameters = new HashMap<>();
-		this.timer = new Timer();
+		this.timer = timer;
 	}
 
 	public void setToken( String tokenValue, String tokenSecret ) {
@@ -127,17 +130,17 @@ public class BLAuthSigner {
 	}
 
 	private String bytesToBase64String( byte[] bytes ) throws Exception {
-		return new String( Base64.encodeBase64( bytes ), "UTF-8" );
+		return Base64.getEncoder().encodeToString(bytes);
 	}
 
-	static class Timer {
+	public static class Timer {
 		private final Random	rand	= new Random();
 
-		Long getMilis( ) {
+		public Long getMilis( ) {
 			return System.currentTimeMillis();
 		}
 
-		Integer getRandomInteger( ) {
+		public Integer getRandomInteger( ) {
 			return rand.nextInt();
 		}
 	}

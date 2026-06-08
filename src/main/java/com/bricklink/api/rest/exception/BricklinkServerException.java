@@ -1,9 +1,13 @@
 package com.bricklink.api.rest.exception;
 
-import feign.FeignException;
+import lombok.Getter;
 
-public class BricklinkServerException extends FeignException {
+@Getter
+public class BricklinkServerException extends RuntimeException {
+    private final int status;
+
     public BricklinkServerException(int status, String message) {
-        super(status, message);
+        super(message);
+        this.status = status;
     }
 }

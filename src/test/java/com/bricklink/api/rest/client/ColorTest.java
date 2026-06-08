@@ -8,9 +8,12 @@ import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.matching;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @WireMockTest(httpPort = 8080)
@@ -24,6 +27,8 @@ class ColorTest extends BricklistRestClientTest {
                         .withBody(getTestResponse("/__rest/bricklink/color/colors/colors_200.json"))));
         List<Color> colors = bricklinkRestClient.getColors().getData();
         assertThat(colors.size()).isEqualTo(2);
+        verify(getRequestedFor(urlEqualTo("/colors"))
+                .withHeader("Authorization", matching("OAuth realm=\"\",oauth_consumer_key=\"0\",oauth_token=\"0\",oauth_signature_method=\"HMAC-SHA1\",oauth_signature=\".+\",oauth_timestamp=\"\\d+\",oauth_nonce=\"\\d+\",oauth_version=\"1.0\"")));
     }
 
     @Test
