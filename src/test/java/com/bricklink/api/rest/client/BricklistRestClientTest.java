@@ -8,20 +8,36 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+
 @EnableConfigurationProperties(value = BricklinkRestProperties.class)
 @SpringJUnitConfig(classes = {BricklinkRestConfiguration.class})
-@TestPropertySource("classpath:bricklink-rest.properties")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Slf4j
 public abstract class BricklistRestClientTest {
     @RegisterExtension
-    public WireMockExtension wireMockRule = WireMockExtension.newInstance().build();
+    static WireMockExtension wireMockRule = WireMockExtension.newInstance()
+            .options(wireMockConfig().dynamicPort())
+            .configureStaticDsl(true)
+            .build();
+
+    @DynamicPropertySource
+    static void bricklinkRestProperties(DynamicPropertyRegistry registry) {
+        registry.add("bricklink.rest.uri", wireMockRule::baseUrl);
+        registry.add("bricklink.rest.consumer.key", () -> "0");
+        registry.add("bricklink.rest.consumer.secret", () -> "0");
+        registry.add("bricklink.rest.token.value", () -> "0");
+        registry.add("bricklink.rest.token.secret", () -> "0");
+    }
 
     @Autowired
     BricklinkRestClient bricklinkRestClient;

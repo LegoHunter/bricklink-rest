@@ -2,7 +2,6 @@ package com.bricklink.api.rest.client;
 
 import com.bricklink.api.rest.exception.BricklinkClientException;
 import com.bricklink.api.rest.exception.BricklinkServerException;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import org.junit.jupiter.api.Test;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -11,7 +10,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-@WireMockTest(httpPort = 8080)
 class ErrorHandlingTest extends BricklistRestClientTest {
     @Test
     void invalidUri_returns() {
@@ -52,5 +50,22 @@ class ErrorHandlingTest extends BricklistRestClientTest {
         assertThatCode(() -> bricklinkRestClient.getColor(999))
                 .isInstanceOf(BricklinkServerException.class)
                 .hasMessageContaining("server failure");
+    }
+
+    @Test
+    void httpRedirect_throwsBricklinkClientException() {
+        stubFor(get(urlEqualTo("/orders?direction=in&status=PENDING"))
+                .willReturn(aResponse()
+                        .withStatus(302)
+                        .withHeader("Location", "http://api.bricklink.com/v2/error_404.page")));
+
+        assertThatCode(() -> bricklinkRestClient.getOrders(
+                java.util.Map.of("direction", "in"),
+                java.util.List.of("PENDING")
+        ))
+                .isInstanceOf(BricklinkClientException.class)
+                .hasMessageContaining("302")
+                .hasMessageContaining("Unexpected redirect")
+                .hasMessageContaining("error_404.page");
     }
 }

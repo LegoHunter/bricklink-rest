@@ -1,7 +1,6 @@
 package com.bricklink.api.rest.client;
 
 import com.bricklink.api.rest.model.v1.Color;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,7 +15,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@WireMockTest(httpPort = 8080)
 class ColorTest extends BricklistRestClientTest {
     @Test
     void colorById_returns200() {

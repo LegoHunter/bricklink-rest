@@ -4,7 +4,6 @@ import com.bricklink.api.rest.model.v1.Category;
 import com.bricklink.api.rest.model.v1.Inventory;
 import com.bricklink.api.rest.model.v1.Item;
 import com.bricklink.api.rest.model.v1.PriceGuide;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,7 +17,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@WireMockTest(httpPort = 8080)
 class BricklinkRestClientEndpointTest extends BricklistRestClientTest {
 
     @Test
