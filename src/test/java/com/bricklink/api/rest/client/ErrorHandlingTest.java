@@ -1,5 +1,6 @@
 package com.bricklink.api.rest.client;
 
+import com.bricklink.api.rest.exception.BricklinkClientException;
 import com.bricklink.api.rest.exception.BricklinkServerException;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import org.junit.jupiter.api.Test;
@@ -24,5 +25,32 @@ class ErrorHandlingTest extends BricklistRestClientTest {
         }).isInstanceOf(BricklinkServerException.class)
           .hasMessageContaining("INTERNAL_SERVER_ERROR")
           .hasMessageContaining("500");
+    }
+
+    @Test
+    void httpClientError_throwsBricklinkClientException() {
+        stubFor(get(urlEqualTo("/colors/999"))
+                .willReturn(aResponse()
+                        .withStatus(404)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"not found\"}")));
+
+        assertThatCode(() -> bricklinkRestClient.getColor(999))
+                .isInstanceOf(BricklinkClientException.class)
+                .hasMessageContaining("404")
+                .hasMessageContaining("not found");
+    }
+
+    @Test
+    void httpServerError_throwsBricklinkServerException() {
+        stubFor(get(urlEqualTo("/colors/999"))
+                .willReturn(aResponse()
+                        .withStatus(500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"server failure\"}")));
+
+        assertThatCode(() -> bricklinkRestClient.getColor(999))
+                .isInstanceOf(BricklinkServerException.class)
+                .hasMessageContaining("server failure");
     }
 }
