@@ -43,6 +43,20 @@ class BricklinkRestConfigurationTest {
                 });
     }
 
+    @Test
+    void failsWithClearMessageWhenOAuthPropertiesAreMissing() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(BricklinkRestConfiguration.class)
+                .withPropertyValues("bricklink.rest.uri=https://api.bricklink.com/api/store/v1")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .rootCause()
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("Missing required BrickLink REST property [bricklink.rest.consumer.key]");
+                });
+    }
+
     @Configuration
     static class ApplicationObjectMapperConfiguration {
         @Bean

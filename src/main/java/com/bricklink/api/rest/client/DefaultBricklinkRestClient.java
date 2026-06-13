@@ -132,6 +132,15 @@ public class DefaultBricklinkRestClient implements BricklinkRestClient {
     }
 
     private Map<String, Object> nonNullParams(Map<String, Object> params) {
-        return params == null ? new HashMap<>() : new HashMap<>(params);
+        Map<String, Object> nonNullParams = new HashMap<>();
+        if (params == null) {
+            return nonNullParams;
+        }
+        params.forEach((key, value) -> {
+            if (key != null && value != null) {
+                nonNullParams.put(key, value);
+            }
+        });
+        return nonNullParams;
     }
 }
