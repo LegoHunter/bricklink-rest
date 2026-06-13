@@ -4,6 +4,10 @@ import com.bricklink.api.rest.exception.BricklinkClientException;
 import com.bricklink.api.rest.exception.BricklinkServerException;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -67,5 +71,21 @@ class ErrorHandlingTest extends BricklistRestClientTest {
                 .hasMessageContaining("302")
                 .hasMessageContaining("Unexpected redirect")
                 .hasMessageContaining("error_404.page");
+    }
+
+    @Test
+    void getOrdersFiltersNullRequestParametersBeforeSigning() {
+        stubFor(get(urlEqualTo("/orders?direction=in&status=PENDING"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"meta\":{\"code\":200},\"data\":[]}")));
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("direction", "in");
+        params.put("filed", null);
+
+        assertThatCode(() -> bricklinkRestClient.getOrders(params, List.of("PENDING")))
+                .doesNotThrowAnyException();
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ public class BricklinkOAuthInterceptor implements ClientHttpRequestInterceptor {
 
     public BricklinkOAuthInterceptor(BricklinkRestProperties properties) {
         this.properties = properties;
+        validateProperties(properties);
     }
 
     @Override
@@ -50,5 +52,30 @@ public class BricklinkOAuthInterceptor implements ClientHttpRequestInterceptor {
                 oauthParameters.get(OAuthConstants.SIGNATURE),
                 oauthParameters.get(OAuthConstants.TIMESTAMP),
                 oauthParameters.get(OAuthConstants.NONCE));
+    }
+
+    private void validateProperties(BricklinkRestProperties properties) {
+        requireText(
+                properties.getConsumer() == null ? null : properties.getConsumer().getKey(),
+                "bricklink.rest.consumer.key"
+        );
+        requireText(
+                properties.getConsumer() == null ? null : properties.getConsumer().getSecret(),
+                "bricklink.rest.consumer.secret"
+        );
+        requireText(
+                properties.getToken() == null ? null : properties.getToken().getValue(),
+                "bricklink.rest.token.value"
+        );
+        requireText(
+                properties.getToken() == null ? null : properties.getToken().getSecret(),
+                "bricklink.rest.token.secret"
+        );
+    }
+
+    private void requireText(String value, String propertyName) {
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalStateException("Missing required BrickLink REST property [%s]".formatted(propertyName));
+        }
     }
 }
