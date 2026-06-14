@@ -34,7 +34,7 @@ public class BricklinkOAuthInterceptor implements ClientHttpRequestInterceptor {
         MultiValueMap<String, String> queryParams = UriComponentsBuilder.fromUri(request.getURI())
                                                                          .build()
                                                                          .getQueryParams();
-        queryParams.forEach((key, values) -> signer.addParameter(key, String.join(",", values)));
+        queryParams.forEach((key, values) -> values.forEach(value -> signer.addParameter(key, value)));
 
         try {
             request.getHeaders().set(HttpHeaders.AUTHORIZATION, getAuthorizationHeader(signer.getFinalOAuthParams()));

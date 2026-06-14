@@ -3,13 +3,14 @@ package com.bricklink.api.rest.support;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.util.Base64;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 // @See https://medium.com/@prasad.veluru/guide-to-authenticate-requests-using-oauth-1-0-231e4894311f
 public class BLAuthSigner {
@@ -29,7 +30,7 @@ public class BLAuthSigner {
 	private String				verb;
 
 	private Map<String, String>	oauthParameters;
-	private Map<String, String>	queryParameters;
+	private List<Map.Entry<String, String>> queryParameters;
 
 	private Timer				timer;
 
@@ -41,7 +42,7 @@ public class BLAuthSigner {
 		this.consumerKey = consumerKey;
 		this.consumerSecret = consumerSecret;
 		this.oauthParameters = new HashMap<>();
-		this.queryParameters = new HashMap<>();
+		this.queryParameters = new ArrayList<>();
 		this.timer = timer;
 	}
 
@@ -59,7 +60,7 @@ public class BLAuthSigner {
 	}
 
 	public void addParameter( String key, String value ) {
-		queryParameters.put( key, value );
+		queryParameters.add( new SimpleImmutableEntry<>(key, value) );
 	}
 
 	public Map<String, String> getFinalOAuthParams( ) throws Exception {
@@ -97,28 +98,42 @@ public class BLAuthSigner {
 	}
 
 	private String getNonce( ) {
-		Long ts = timer.getMilis();
-		return String.valueOf( ts + Math.abs( timer.getRandomInteger() ) );
+		return timer.getNonce();
 	}
 
 
 	private String getBaseString( ) {
-		String params = Stream.of(oauthParameters, queryParameters)
-				.map(Map::entrySet)
-				.flatMap(Collection::stream)
-				.collect(Collectors.toMap(
-						Map.Entry::getKey,
-						Map.Entry::getValue, (k1, k2) -> k1))
-				.entrySet()
+		List<Map.Entry<String, String>> parameters = new ArrayList<>();
+		parameters.addAll(oauthParameters.entrySet());
+		parameters.addAll(queryParameters);
+
+		String params = parameters
 				.stream()
-				.map(e -> OAuthEncoder.encode( e.getKey() ).concat( "=" ).concat( e.getValue() ))
-				.sorted()
+				.map(e -> new SimpleImmutableEntry<>(
+						OAuthEncoder.encode( e.getKey() ),
+						OAuthEncoder.encode( e.getValue() )))
+				.sorted(Comparator.comparing(Map.Entry<String, String>::getKey)
+						.thenComparing(Map.Entry::getValue))
+				.map(e -> e.getKey().concat( "=" ).concat( e.getValue() ))
 				.collect(Collectors.joining("&"));
 
 		String formUrlEncodedParams = OAuthEncoder.encode(params);
-		String sanitizedURL = OAuthEncoder.encode( url.replaceAll( "\\?.*", "" ).replace( "\\:\\d{4}", "" ) );
+		String sanitizedURL = OAuthEncoder.encode(getBaseUrl());
 
 		return  "%s&%s&%s".formatted(verb, sanitizedURL, formUrlEncodedParams);
+	}
+
+	private String getBaseUrl() {
+		URI uri = URI.create(url);
+		String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
+		String host = uri.getHost().toLowerCase(Locale.ROOT);
+		String path = uri.getRawPath();
+		int port = uri.getPort();
+		boolean includePort = port != -1
+				&& !("http".equals(scheme) && port == 80)
+				&& !("https".equals(scheme) && port == 443);
+
+		return scheme + "://" + host + (includePort ? ":" + port : "") + (path == null || path.isBlank() ? "/" : path);
 	}
 
 	private String doSign( String toSign, String keyString ) throws Exception {
@@ -142,6 +157,11 @@ public class BLAuthSigner {
 
 		public Integer getRandomInteger( ) {
 			return rand.nextInt();
+		}
+
+		public String getNonce() {
+			Long ts = getMilis();
+			return String.valueOf( ts + Math.abs( getRandomInteger() ) );
 		}
 	}
 
