@@ -6,20 +6,16 @@ import com.bricklink.api.rest.model.v1.BricklinkResource;
 import com.bricklink.api.rest.model.v1.Color;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 
 class ColorServiceTest {
     @Test
     void colorById() {
-        BricklinkRestClient bricklinkRestClient = mock(BricklinkRestClient.class);
-        setupColorsList(bricklinkRestClient);
-        BricklinkResource<Color> color = getResource(200, color(1, "1", "White"));
-        doReturn(color).when(bricklinkRestClient).getColor(1);
+        BricklinkRestClient bricklinkRestClient = stubClient();
         ColorService colorService = new ColorService(bricklinkRestClient);
         Color c = colorService.getColorById(1);
         Color c1 = colorService.getColorByName("White");
@@ -48,7 +44,7 @@ class ColorServiceTest {
         return resource;
     }
 
-    private void setupColorsList(final BricklinkRestClient bricklinkRestClient) {
+    private BricklinkRestClient stubClient() {
         List<Color> colors = new ArrayList<>();
         colors.add(color(1, "1", "White"));
         colors.add(color(2, "2", "Tan"));
@@ -56,6 +52,17 @@ class ColorServiceTest {
         colors.add(color(4, "4", "Orange"));
         colors.add(color(5, "5", "Red"));
         colors.add(color(6, "6", "Reddish-Brown"));
-        doReturn(getResource(200, colors)).when(bricklinkRestClient).getColors();
+        BricklinkResource<List<Color>> colorsResource = getResource(200, colors);
+
+        return (BricklinkRestClient) Proxy.newProxyInstance(
+                BricklinkRestClient.class.getClassLoader(),
+                new Class<?>[]{BricklinkRestClient.class},
+                (proxy, method, args) -> {
+                    if ("getColors".equals(method.getName())) {
+                        return colorsResource;
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                }
+        );
     }
 }
