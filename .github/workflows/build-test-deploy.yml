@@ -25,6 +25,6 @@ permissions:
 
 jobs:
   pipeline:
-    uses: LegoHunter/lego-server-configuration/.github/workflows/maven-library-pipeline.yml@feature/HOMELAB-26-E2-shared-service-workflow
+    uses: LegoHunter/lego-server-configuration/.github/workflows/maven-library-pipeline.yml@develop
     with:
       java-version: '21'
