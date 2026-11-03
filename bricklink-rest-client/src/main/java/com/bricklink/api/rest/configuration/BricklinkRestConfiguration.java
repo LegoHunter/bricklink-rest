@@ -21,7 +21,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
@@ -81,12 +83,27 @@ public class BricklinkRestConfiguration {
                     }
                 });
 
+        ClientHttpRequestFactory requestFactory = requestFactory(bricklinkRestProperties.getTimeouts());
         if (bricklinkRestProperties.getHttpLogging().isEnabled()) {
-            builder.requestFactory(new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory()));
+            builder.requestFactory(new BufferingClientHttpRequestFactory(requestFactory));
             builder.requestInterceptor(new BricklinkHttpLoggingInterceptor(bricklinkRestProperties));
+        } else {
+            builder.requestFactory(requestFactory);
         }
 
         return builder.build();
+    }
+
+    /**
+     * The HTTP client Spring Boot detects on the classpath, with the configured timeouts. Redirects
+     * are not followed: BrickLink answers a bad request URL by redirecting to an error page, which
+     * the status handler above reports as an error.
+     */
+    static ClientHttpRequestFactory requestFactory(BricklinkRestProperties.Timeouts timeouts) {
+        return ClientHttpRequestFactoryBuilder.detect().build(ClientHttpRequestFactorySettings.defaults()
+                .withConnectTimeout(timeouts.getConnect())
+                .withReadTimeout(timeouts.getRead())
+                .withRedirects(ClientHttpRequestFactorySettings.Redirects.DONT_FOLLOW));
     }
 
     @Bean
