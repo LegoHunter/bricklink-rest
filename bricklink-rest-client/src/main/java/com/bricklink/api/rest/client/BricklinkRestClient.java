@@ -28,6 +28,13 @@ public interface BricklinkRestClient {
 
     BricklinkResource<Inventory> updateInventory(Long inventoryId, Inventory inventory);
 
+    /**
+     * Deletes a lot (DELETE /inventories/{inventory_id}). BrickLink returns empty data on success.
+     * Callers that must know the lot is gone read it back: a deleted lot answers 404
+     * ({@link com.bricklink.api.rest.exception.BricklinkClientException#isNotFound()}).
+     */
+    BricklinkResource<Void> deleteInventory(Long inventoryId);
+
     BricklinkResource<Order> updateOrder(String orderId, Order order);
 
     BricklinkResource<Inventory> updateOrderStatus(String orderId, OrderStatus status);

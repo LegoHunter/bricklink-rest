@@ -5,6 +5,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.service.annotation.DeleteExchange;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.PostExchange;
 import org.springframework.web.service.annotation.PutExchange;
@@ -42,6 +43,9 @@ public interface BricklinkHttpClient {
 
     @PutExchange(value = "/inventories/{inventory_id}", contentType = MediaType.APPLICATION_JSON_VALUE)
     BricklinkResource<Inventory> updateInventory(@PathVariable("inventory_id") Long inventoryId, @RequestBody Inventory inventory);
+
+    @DeleteExchange("/inventories/{inventory_id}")
+    BricklinkResource<Void> deleteInventory(@PathVariable("inventory_id") Long inventoryId);
 
     @PutExchange(value = "/orders/{order_id}", contentType = MediaType.APPLICATION_JSON_VALUE)
     BricklinkResource<Order> updateOrder(@PathVariable("order_id") String orderId, @RequestBody Order order);
