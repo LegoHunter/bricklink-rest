@@ -74,6 +74,11 @@ public class DefaultBricklinkRestClient implements BricklinkRestClient {
     }
 
     @Override
+    public BricklinkResource<Void> deleteInventory(Long inventoryId) {
+        return call("deleteInventory", () -> bricklinkHttpClient.deleteInventory(inventoryId));
+    }
+
+    @Override
     public BricklinkResource<Order> updateOrder(String orderId, Order order) {
         return call("updateOrder", () -> bricklinkHttpClient.updateOrder(orderId, order));
     }

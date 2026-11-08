@@ -1,5 +1,6 @@
 package com.bricklink.api.rest.client;
 
+import com.bricklink.api.rest.exception.BricklinkClientException;
 import com.bricklink.api.rest.model.v1.Category;
 import com.bricklink.api.rest.model.v1.Inventory;
 import com.bricklink.api.rest.model.v1.Item;
@@ -14,6 +15,9 @@ import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
@@ -21,6 +25,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BricklinkRestClientEndpointTest extends BricklistRestClientTest {
 
@@ -197,6 +202,73 @@ class BricklinkRestClientEndpointTest extends BricklistRestClientTest {
                         """)));
 
         bricklinkRestClient.updateOrderStatus("31229149", com.bricklink.api.rest.model.v1.OrderStatus.SHIPPED);
+    }
+
+    @Test
+    void deleteInventory_sendsDelete() {
+        stubFor(delete(urlEqualTo("/inventories/12345"))
+                .willReturn(okJson("""
+                        {
+                          "meta": {"code": 204, "message": "OK", "description": "OK"},
+                          "data": {}
+                        }
+                        """)));
+
+        bricklinkRestClient.deleteInventory(12345L);
+
+        verify(deleteRequestedFor(urlEqualTo("/inventories/12345")));
+    }
+
+    @Test
+    void deleteInventory_acceptsAnEmptyNoContentResponse() {
+        stubFor(delete(urlEqualTo("/inventories/12345")).willReturn(aResponse().withStatus(204)));
+
+        bricklinkRestClient.deleteInventory(12345L);
+
+        verify(deleteRequestedFor(urlEqualTo("/inventories/12345")));
+    }
+
+    @Test
+    void getInventory_ofADeletedLot_isNotFound() {
+        // BrickLink reports a missing lot in the envelope with HTTP 200.
+        stubFor(get(urlEqualTo("/inventories/12345"))
+                .willReturn(okJson("""
+                        {
+                          "meta": {"code": 404, "message": "RESOURCE_NOT_FOUND", "description": "Resource not found"},
+                          "data": {}
+                        }
+                        """)));
+
+        assertThatThrownBy(() -> bricklinkRestClient.getInventories(12345L))
+                .isInstanceOfSatisfying(BricklinkClientException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo(404);
+                    assertThat(e.isNotFound()).isTrue();
+                });
+    }
+
+    @Test
+    void httpNotFound_isNotFound() {
+        stubFor(get(urlEqualTo("/inventories/12345")).willReturn(aResponse().withStatus(404)));
+
+        assertThatThrownBy(() -> bricklinkRestClient.getInventories(12345L))
+                .isInstanceOfSatisfying(BricklinkClientException.class, e -> assertThat(e.isNotFound()).isTrue());
+    }
+
+    @Test
+    void otherClientErrors_areNotNotFound() {
+        stubFor(delete(urlEqualTo("/inventories/12345"))
+                .willReturn(okJson("""
+                        {
+                          "meta": {"code": 422, "message": "RESOURCE_UPDATE_NOT_ALLOWED", "description": "not allowed"},
+                          "data": {}
+                        }
+                        """)));
+
+        assertThatThrownBy(() -> bricklinkRestClient.deleteInventory(12345L))
+                .isInstanceOfSatisfying(BricklinkClientException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo(422);
+                    assertThat(e.isNotFound()).isFalse();
+                });
     }
 
     private com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder okJson(String body) {
